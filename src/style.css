@@ -1,5 +1,5 @@
-.icon {
-  width: 64px;
-  vertical-align: top;
-  border: 1px solid salmon;
+#canvas {
+  border: 1px solid black;
+  border-radius: 16px;
+  box-shadow: 0 4px 8px;
 }
