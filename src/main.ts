@@ -9,6 +9,17 @@ canvas.id = "canvas";
 canvas.width = 256;
 canvas.height = 256;
 document.body.append(canvas);
+const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
+
+const buttonContainer = document.createElement("div");
+
+const thinBrush = document.createElement("button");
+thinBrush.textContent = "Thin Brush";
+buttonContainer.append(thinBrush);
+
+const thickBrush = document.createElement("button");
+thickBrush.textContent = "Thick Brush";
+buttonContainer.append(thickBrush);
 
 const clear = document.createElement("button");
 clear.textContent = "Clear";
@@ -22,8 +33,23 @@ const redo = document.createElement("button");
 redo.textContent = "Redo";
 document.body.append(redo);
 
+document.body.append(buttonContainer);
+
 const cursor = { active: false, x: 0, y: 0 };
 type Point = { x: number; y: number };
+let lineWidth = 2;
+
+thinBrush.addEventListener("click", () => {
+  lineWidth = 2;
+  thinBrush.classList.add("selectedBrush");
+  thickBrush.classList.remove("selectedBrush");
+});
+
+thickBrush.addEventListener("click", () => {
+  lineWidth = 6;
+  thinBrush.classList.remove("selectedBrush");
+  thickBrush.classList.add("selectedBrush");
+});
 
 type Command = {
   display(ctx: CanvasRenderingContext2D): void;
@@ -60,7 +86,7 @@ class LineCommand implements Command {
     ctx.restore();
   }
 }
-const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
+
 const commands: Command[] = [];
 const redoCommands: Command[] = [];
 let currentCommand: LineCommand | null = null;
@@ -76,7 +102,7 @@ canvas.addEventListener("drawing-changed", () => {
 canvas.addEventListener("mousedown", (e) => {
   cursor.active = true;
   const start = { x: e.offsetX, y: e.offsetY };
-  currentCommand = new LineCommand(start);
+  currentCommand = new LineCommand(start, lineWidth);
   commands.push(currentCommand);
   redoCommands.length = 0;
   canvas.dispatchEvent(new Event("drawing-changed"));
