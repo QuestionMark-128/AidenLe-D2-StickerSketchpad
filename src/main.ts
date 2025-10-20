@@ -36,6 +36,35 @@ document.body.append(redo);
 
 document.body.append(buttonContainer);
 
+const sticker1 = document.createElement("button");
+sticker1.textContent = "👻";
+document.body.append(sticker1);
+
+const sticker2 = document.createElement("button");
+sticker2.textContent = "🗡️";
+document.body.append(sticker2);
+
+const sticker3 = document.createElement("button");
+sticker3.textContent = "💥";
+document.body.append(sticker3);
+
+let selectedSticker: string | null = null;
+
+sticker1.addEventListener("click", () => {
+  selectedSticker = "👻";
+  canvas.dispatchEvent(new Event("tool-moved"));
+});
+
+sticker2.addEventListener("click", () => {
+  selectedSticker = "🗡️";
+  canvas.dispatchEvent(new Event("tool-moved"));
+});
+
+sticker3.addEventListener("click", () => {
+  selectedSticker = "💥";
+  canvas.dispatchEvent(new Event("tool-moved"));
+});
+
 const cursor = { active: false, x: 0, y: 0 };
 type Point = { x: number; y: number };
 let lineWidth = 2;
@@ -44,12 +73,14 @@ thinBrush.addEventListener("click", () => {
   lineWidth = 2;
   thinBrush.classList.add("selectedBrush");
   thickBrush.classList.remove("selectedBrush");
+  selectedSticker = null;
 });
 
 thickBrush.addEventListener("click", () => {
   lineWidth = 6;
-  thinBrush.classList.remove("selectedBrush");
+  thickBrush.classList.remove("selectedBrush");
   thickBrush.classList.add("selectedBrush");
+  selectedSticker = null;
 });
 
 type Command = {
@@ -88,7 +119,7 @@ class LineCommand implements Command {
   }
 }
 
-class toolPreview implements Command {
+class ToolPreview implements Command {
   point: Point;
   width: number;
   color: string;
@@ -110,10 +141,52 @@ class toolPreview implements Command {
   }
 }
 
+class StickerCommand implements Command {
+  point: Point;
+  sticker: string;
+
+  constructor(point: Point, sticker: string) {
+    this.point = point;
+    this.sticker = sticker;
+  }
+
+  drag(point: Point) {
+    this.point = point;
+  }
+
+  display(ctx: CanvasRenderingContext2D) {
+    ctx.save();
+    ctx.textAlign = "center";
+    ctx.font = "32px sans-serif";
+    ctx.textBaseline = "middle";
+    ctx.fillText(this.sticker, this.point.x, this.point.y);
+    ctx.restore();
+  }
+}
+
+class StickerPreview implements Command {
+  point: Point;
+  sticker: string;
+
+  constructor(point: Point, sticker: string) {
+    this.point = point;
+    this.sticker = sticker;
+  }
+
+  display(ctx: CanvasRenderingContext2D) {
+    ctx.save();
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = "32px sans-serif";
+    ctx.fillText(this.sticker, this.point.x, this.point.y);
+    ctx.restore();
+  }
+}
+
 const commands: Command[] = [];
 const redoCommands: Command[] = [];
 let currentCommand: LineCommand | null = null;
-let previewCommand: toolPreview | null = null;
+let previewCommand: Command | null = null;
 
 function updatePreview() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -129,12 +202,18 @@ canvas.addEventListener("drawing-changed", updatePreview);
 canvas.addEventListener("tool-moved", updatePreview);
 
 canvas.addEventListener("mousedown", (e) => {
-  cursor.active = true;
   const start = { x: e.offsetX, y: e.offsetY };
-  currentCommand = new LineCommand(start, lineWidth);
-  commands.push(currentCommand);
-  redoCommands.length = 0;
-  canvas.dispatchEvent(new Event("drawing-changed"));
+
+  if (selectedSticker) {
+    commands.push(new StickerCommand(start, selectedSticker));
+    canvas.dispatchEvent(new Event("drawing-changed"));
+  } else {
+    cursor.active = true;
+    currentCommand = new LineCommand(start, lineWidth);
+    commands.push(currentCommand);
+    redoCommands.length = 0;
+    canvas.dispatchEvent(new Event("drawing-changed"));
+  }
 });
 
 canvas.addEventListener("mousemove", (e) => {
@@ -144,7 +223,11 @@ canvas.addEventListener("mousemove", (e) => {
     currentCommand.drag(point);
     canvas.dispatchEvent(new Event("drawing-changed"));
   } else {
-    previewCommand = new toolPreview(point, lineWidth);
+    if (selectedSticker) {
+      previewCommand = new StickerPreview(point, selectedSticker);
+    } else {
+      previewCommand = new ToolPreview(point, lineWidth);
+    }
     canvas.dispatchEvent(new Event("tool-moved"));
   }
 });
