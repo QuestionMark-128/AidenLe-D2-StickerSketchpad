@@ -22,71 +22,94 @@ const redo = document.createElement("button");
 redo.textContent = "Redo";
 document.body.append(redo);
 
-const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
 const cursor = { active: false, x: 0, y: 0 };
-
 type Point = { x: number; y: number };
-const lines: Point[][] = [];
-const relines: Point[][] = [];
-let currentLine: Point[] | null = null;
+
+type Command = {
+  display(ctx: CanvasRenderingContext2D): void;
+};
+
+class LineCommand implements Command {
+  points: Point[] = [];
+  color: string;
+  width: number;
+
+  constructor(start: Point, width = 2, color = "black") {
+    this.points.push(start);
+    this.width = width;
+    this.color = color;
+  }
+
+  drag(point: Point) {
+    this.points.push(point);
+  }
+
+  display(ctx: CanvasRenderingContext2D) {
+    if (this.points.length === 0) return;
+    ctx.save();
+    ctx.strokeStyle = this.color;
+    ctx.lineWidth = this.width;
+    ctx.beginPath();
+    ctx.moveTo(this.points[0].x, this.points[0].y);
+
+    for (const p of this.points) {
+      ctx.lineTo(p.x, p.y);
+    }
+
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
+const commands: Command[] = [];
+const redoCommands: Command[] = [];
+let currentCommand: LineCommand | null = null;
 
 canvas.addEventListener("drawing-changed", () => {
-  ctx?.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  lines.forEach((line) => {
-    if (line.length > 0) {
-      ctx.beginPath();
-      ctx.moveTo(line[0].x, line[0].y);
-      for (const lin of line) {
-        ctx.lineTo(lin.x, lin.y);
-      }
-      ctx.stroke();
-    }
-  });
+  for (const cmd of commands) {
+    cmd.display(ctx);
+  }
 });
 
 canvas.addEventListener("mousedown", (e) => {
   cursor.active = true;
-  cursor.x = e.offsetX;
-  cursor.y = e.offsetY;
-  currentLine = [];
-
-  currentLine.push({ x: cursor.x, y: cursor.y });
-  lines.push(currentLine);
-
-  relines.length = 0;
-
+  const start = { x: e.offsetX, y: e.offsetY };
+  currentCommand = new LineCommand(start);
+  commands.push(currentCommand);
+  redoCommands.length = 0;
   canvas.dispatchEvent(new Event("drawing-changed"));
 });
 
 canvas.addEventListener("mousemove", (e) => {
-  if (!cursor.active || !currentLine) return;
-  cursor.x = e.offsetX;
-  cursor.y = e.offsetY;
-  currentLine.push({ x: cursor.x, y: cursor.y });
+  if (!cursor.active || !currentCommand) return;
+  const point = { x: e.offsetX, y: e.offsetY };
+  currentCommand.drag(point);
   canvas.dispatchEvent(new Event("drawing-changed"));
 });
 
 canvas.addEventListener("mouseup", () => {
   cursor.active = false;
-  currentLine = null;
+  currentCommand = null;
 });
 
 clear.addEventListener("click", () => {
-  lines.length = 0;
+  commands.length = 0;
+  redoCommands.length = 0;
   canvas.dispatchEvent(new Event("drawing-changed"));
 });
 
 undo.addEventListener("click", () => {
-  if (lines.length > 0) {
-    relines.push(lines.pop()!);
+  if (commands.length > 0) {
+    redoCommands.push(commands.pop()!);
     canvas.dispatchEvent(new Event("drawing-changed"));
   }
 });
 
 redo.addEventListener("click", () => {
-  if (relines.length > 0) {
-    lines.push(relines.pop()!);
+  if (redoCommands.length > 0) {
+    commands.push(redoCommands.pop()!);
     canvas.dispatchEvent(new Event("drawing-changed"));
   }
 });
