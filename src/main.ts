@@ -8,6 +8,7 @@ const canvas = document.createElement("canvas");
 canvas.id = "canvas";
 canvas.width = 256;
 canvas.height = 256;
+canvas.style.cursor = "none";
 document.body.append(canvas);
 const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
 
@@ -87,17 +88,45 @@ class LineCommand implements Command {
   }
 }
 
+class toolPreview implements Command {
+  point: Point;
+  width: number;
+  color: string;
+
+  constructor(point: Point, width = 2, color = "dark gray") {
+    this.point = point;
+    this.width = width;
+    this.color = color;
+  }
+
+  display(ctx: CanvasRenderingContext2D) {
+    ctx.save();
+    ctx.strokeStyle = this.color;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(this.point.x, this.point.y, this.width / 2, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
 const commands: Command[] = [];
 const redoCommands: Command[] = [];
 let currentCommand: LineCommand | null = null;
+let previewCommand: toolPreview | null = null;
 
-canvas.addEventListener("drawing-changed", () => {
+function updatePreview() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-
   for (const cmd of commands) {
     cmd.display(ctx);
   }
-});
+  if (previewCommand && !cursor.active) {
+    previewCommand.display(ctx);
+  }
+}
+
+canvas.addEventListener("drawing-changed", updatePreview);
+canvas.addEventListener("tool-moved", updatePreview);
 
 canvas.addEventListener("mousedown", (e) => {
   cursor.active = true;
@@ -109,15 +138,26 @@ canvas.addEventListener("mousedown", (e) => {
 });
 
 canvas.addEventListener("mousemove", (e) => {
-  if (!cursor.active || !currentCommand) return;
   const point = { x: e.offsetX, y: e.offsetY };
-  currentCommand.drag(point);
-  canvas.dispatchEvent(new Event("drawing-changed"));
+
+  if (cursor.active && currentCommand) {
+    currentCommand.drag(point);
+    canvas.dispatchEvent(new Event("drawing-changed"));
+  } else {
+    previewCommand = new toolPreview(point, lineWidth);
+    canvas.dispatchEvent(new Event("tool-moved"));
+  }
 });
 
 canvas.addEventListener("mouseup", () => {
   cursor.active = false;
   currentCommand = null;
+});
+
+canvas.addEventListener("mouseleave", () => {
+  cursor.active = false;
+  previewCommand = null;
+  canvas.dispatchEvent(new Event("tool-moved"));
 });
 
 clear.addEventListener("click", () => {
