@@ -23,6 +23,23 @@ const thickBrush = document.createElement("button");
 thickBrush.textContent = "Thick Brush";
 buttonContainer.append(thickBrush);
 
+const colors = ["black", "red", "blue", "yellow"];
+let brushColor = "black";
+const colorContainer = document.createElement("div");
+document.body.append(colorContainer);
+
+colors.forEach((c) => {
+  const colorButton = document.createElement("button");
+  colorButton.textContent = c;
+  colorButton.style.backgroundColor = c;
+  colorButton.style.color = c === "black" ? "white" : "black";
+  colorButton.addEventListener("click", () => {
+    brushColor = c;
+    selectedSticker = null;
+  });
+  colorContainer.append(colorButton);
+});
+
 const stickerContainer = document.createElement("div");
 document.body.append(stickerContainer);
 
@@ -45,6 +62,18 @@ document.body.append(undo);
 const redo = document.createElement("button");
 redo.textContent = "Redo";
 document.body.append(redo);
+
+const rotationSlider = document.createElement("input");
+rotationSlider.type = "range";
+rotationSlider.min = "0";
+rotationSlider.max = "360";
+rotationSlider.value = "0";
+document.body.append(rotationSlider);
+
+let stickerRotation = 0;
+rotationSlider.addEventListener("input", () => {
+  stickerRotation = parseInt(rotationSlider.value);
+});
 
 const stickers: string[] = ["👻", "🗡️", "💥"];
 
@@ -128,10 +157,12 @@ class LineCommand implements Command {
 class StickerCommand implements Command {
   point: Point;
   sticker: string;
+  rotation: number;
 
-  constructor(point: Point, sticker: string) {
+  constructor(point: Point, sticker: string, rotation = 0) {
     this.point = point;
     this.sticker = sticker;
+    this.rotation = rotation;
   }
 
   drag(point: Point) {
@@ -140,6 +171,8 @@ class StickerCommand implements Command {
 
   display(ctx: CanvasRenderingContext2D) {
     ctx.save();
+    ctx.translate(this.point.x, this.point.y);
+    ctx.rotate((this.rotation * Math.PI) / 180);
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     const isEmoji = /\p{Emoji}/u.test(this.sticker);
@@ -147,7 +180,7 @@ class StickerCommand implements Command {
       ? `32px "Segoe UI","Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`
       : `32px Arial`;
     ctx.fillStyle = "black";
-    ctx.fillText(this.sticker, this.point.x, this.point.y);
+    ctx.fillText(this.sticker, 0, 0);
     ctx.restore();
   }
 }
@@ -177,14 +210,18 @@ class ToolPreview implements Command {
 class StickerPreview implements Command {
   point: Point;
   sticker: string;
+  rotation: number;
 
-  constructor(point: Point, sticker: string) {
+  constructor(point: Point, sticker: string, rotation = 0) {
     this.point = point;
     this.sticker = sticker;
+    this.rotation = rotation;
   }
 
   display(ctx: CanvasRenderingContext2D) {
     ctx.save();
+    ctx.translate(this.point.x, this.point.y);
+    ctx.rotate((this.rotation * Math.PI) / 180);
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     const isEmoji = /\p{Emoji}/u.test(this.sticker);
@@ -192,7 +229,7 @@ class StickerPreview implements Command {
       ? `32px "Segoe UI","Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`
       : `32px Arial`;
     ctx.fillStyle = "black";
-    ctx.fillText(this.sticker, this.point.x, this.point.y);
+    ctx.fillText(this.sticker, 0, 0);
     ctx.restore();
   }
 }
@@ -219,11 +256,11 @@ canvas.addEventListener("mousedown", (e) => {
   const start = { x: e.offsetX, y: e.offsetY };
 
   if (selectedSticker) {
-    commands.push(new StickerCommand(start, selectedSticker));
+    commands.push(new StickerCommand(start, selectedSticker, stickerRotation));
     canvas.dispatchEvent(new Event("drawing-changed"));
   } else {
     cursor.active = true;
-    currentCommand = new LineCommand(start, lineWidth);
+    currentCommand = new LineCommand(start, lineWidth, brushColor);
     commands.push(currentCommand);
     redoCommands.length = 0;
     canvas.dispatchEvent(new Event("drawing-changed"));
@@ -238,9 +275,13 @@ canvas.addEventListener("mousemove", (e) => {
     canvas.dispatchEvent(new Event("drawing-changed"));
   } else {
     if (selectedSticker) {
-      previewCommand = new StickerPreview(point, selectedSticker);
+      previewCommand = new StickerPreview(
+        point,
+        selectedSticker,
+        stickerRotation,
+      );
     } else {
-      previewCommand = new ToolPreview(point, lineWidth);
+      previewCommand = new ToolPreview(point, lineWidth, brushColor);
     }
     canvas.dispatchEvent(new Event("tool-moved"));
   }
