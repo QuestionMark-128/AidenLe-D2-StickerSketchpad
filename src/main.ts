@@ -50,7 +50,7 @@ const stickers: string[] = ["👻", "🗡️", "💥"];
 
 let selectedSticker: string | null = null;
 type Point = { x: number; y: number };
-let lineWidth = 2;
+let lineWidth = 3;
 const cursor = { active: false };
 
 function stickerButtons() {
@@ -76,7 +76,7 @@ stickerButton.addEventListener("click", () => {
 });
 
 thinBrush.addEventListener("click", () => {
-  lineWidth = 2;
+  lineWidth = 3;
   thinBrush.classList.add("selectedBrush");
   thickBrush.classList.remove("selectedBrush");
   selectedSticker = null;
