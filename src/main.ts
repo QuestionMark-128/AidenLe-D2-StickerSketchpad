@@ -13,6 +13,7 @@ document.body.append(canvas);
 const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
 
 const buttonContainer = document.createElement("div");
+document.body.append(buttonContainer);
 
 const thinBrush = document.createElement("button");
 thinBrush.textContent = "Thin Brush";
@@ -21,6 +22,13 @@ buttonContainer.append(thinBrush);
 const thickBrush = document.createElement("button");
 thickBrush.textContent = "Thick Brush";
 buttonContainer.append(thickBrush);
+
+const stickerContainer = document.createElement("div");
+document.body.append(stickerContainer);
+
+const stickerButton = document.createElement("button");
+stickerButton.textContent = "Add Sticker";
+document.body.append(stickerButton);
 
 const clear = document.createElement("button");
 clear.textContent = "Clear";
@@ -34,40 +42,34 @@ const redo = document.createElement("button");
 redo.textContent = "Redo";
 document.body.append(redo);
 
-document.body.append(buttonContainer);
-
-const sticker1 = document.createElement("button");
-sticker1.textContent = "👻";
-document.body.append(sticker1);
-
-const sticker2 = document.createElement("button");
-sticker2.textContent = "🗡️";
-document.body.append(sticker2);
-
-const sticker3 = document.createElement("button");
-sticker3.textContent = "💥";
-document.body.append(sticker3);
+const stickers: string[] = ["👻", "🗡️", "💥"];
 
 let selectedSticker: string | null = null;
-
-sticker1.addEventListener("click", () => {
-  selectedSticker = "👻";
-  canvas.dispatchEvent(new Event("tool-moved"));
-});
-
-sticker2.addEventListener("click", () => {
-  selectedSticker = "🗡️";
-  canvas.dispatchEvent(new Event("tool-moved"));
-});
-
-sticker3.addEventListener("click", () => {
-  selectedSticker = "💥";
-  canvas.dispatchEvent(new Event("tool-moved"));
-});
-
-const cursor = { active: false, x: 0, y: 0 };
 type Point = { x: number; y: number };
 let lineWidth = 2;
+const cursor = { active: false };
+
+function stickerButtons() {
+  stickerContainer.innerHTML = "";
+  for (const s of stickers) {
+    const b = document.createElement("button");
+    b.textContent = s;
+    b.addEventListener("click", () => {
+      selectedSticker = s;
+      canvas.dispatchEvent(new Event("tool-moved"));
+    });
+    stickerContainer.append(b);
+  }
+}
+stickerButtons();
+
+stickerButton.addEventListener("click", () => {
+  const text = prompt("Add a sticker", "");
+  if (text && text.trim().length > 0) {
+    stickers.push(text);
+    stickerButtons();
+  }
+});
 
 thinBrush.addEventListener("click", () => {
   lineWidth = 2;
@@ -78,7 +80,7 @@ thinBrush.addEventListener("click", () => {
 
 thickBrush.addEventListener("click", () => {
   lineWidth = 6;
-  thickBrush.classList.remove("selectedBrush");
+  thinBrush.classList.remove("selectedBrush");
   thickBrush.classList.add("selectedBrush");
   selectedSticker = null;
 });
@@ -119,28 +121,6 @@ class LineCommand implements Command {
   }
 }
 
-class ToolPreview implements Command {
-  point: Point;
-  width: number;
-  color: string;
-
-  constructor(point: Point, width = 2, color = "dark gray") {
-    this.point = point;
-    this.width = width;
-    this.color = color;
-  }
-
-  display(ctx: CanvasRenderingContext2D) {
-    ctx.save();
-    ctx.strokeStyle = this.color;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.arc(this.point.x, this.point.y, this.width / 2, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.restore();
-  }
-}
-
 class StickerCommand implements Command {
   point: Point;
   sticker: string;
@@ -160,6 +140,28 @@ class StickerCommand implements Command {
     ctx.font = "32px sans-serif";
     ctx.textBaseline = "middle";
     ctx.fillText(this.sticker, this.point.x, this.point.y);
+    ctx.restore();
+  }
+}
+
+class ToolPreview implements Command {
+  point: Point;
+  width: number;
+  color: string;
+
+  constructor(point: Point, width = 2, color = "dark gray") {
+    this.point = point;
+    this.width = width;
+    this.color = color;
+  }
+
+  display(ctx: CanvasRenderingContext2D) {
+    ctx.save();
+    ctx.strokeStyle = this.color;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(this.point.x, this.point.y, this.width / 2, 0, Math.PI * 2);
+    ctx.stroke();
     ctx.restore();
   }
 }
@@ -262,3 +264,5 @@ redo.addEventListener("click", () => {
     canvas.dispatchEvent(new Event("drawing-changed"));
   }
 });
+
+canvas.dispatchEvent(new Event("drawing-changed"));
