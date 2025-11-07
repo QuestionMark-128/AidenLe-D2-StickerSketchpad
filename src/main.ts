@@ -30,6 +30,10 @@ const stickerButton = document.createElement("button");
 stickerButton.textContent = "Add Sticker";
 document.body.append(stickerButton);
 
+const exportButton = document.createElement("button");
+exportButton.textContent = "Export";
+document.body.append(exportButton);
+
 const clear = document.createElement("button");
 clear.textContent = "Clear";
 document.body.append(clear);
@@ -137,8 +141,12 @@ class StickerCommand implements Command {
   display(ctx: CanvasRenderingContext2D) {
     ctx.save();
     ctx.textAlign = "center";
-    ctx.font = "32px sans-serif";
     ctx.textBaseline = "middle";
+    const isEmoji = /\p{Emoji}/u.test(this.sticker);
+    ctx.font = isEmoji
+      ? `32px "Segoe UI","Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`
+      : `32px Arial`;
+    ctx.fillStyle = "black";
     ctx.fillText(this.sticker, this.point.x, this.point.y);
     ctx.restore();
   }
@@ -179,7 +187,11 @@ class StickerPreview implements Command {
     ctx.save();
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.font = "32px sans-serif";
+    const isEmoji = /\p{Emoji}/u.test(this.sticker);
+    ctx.font = isEmoji
+      ? `32px "Segoe UI","Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`
+      : `32px Arial`;
+    ctx.fillStyle = "black";
     ctx.fillText(this.sticker, this.point.x, this.point.y);
     ctx.restore();
   }
@@ -263,6 +275,36 @@ redo.addEventListener("click", () => {
     commands.push(redoCommands.pop()!);
     canvas.dispatchEvent(new Event("drawing-changed"));
   }
+});
+
+exportButton.addEventListener("click", () => {
+  const exportWidth = 1024;
+  const exportHeight = 1024;
+
+  const exportCanvas = document.createElement("canvas");
+  exportCanvas.width = exportWidth;
+  exportCanvas.height = exportHeight;
+  const exportCtx = exportCanvas.getContext("2d") as CanvasRenderingContext2D;
+  exportCtx.fillStyle = "white";
+  exportCtx.fillRect(0, 0, exportWidth, exportHeight);
+
+  const scaleX = exportWidth / canvas.width;
+  const scaleY = exportHeight / canvas.height;
+
+  exportCtx.save();
+  exportCtx.scale(scaleX, scaleY);
+
+  for (const cmd of commands) {
+    cmd.display(exportCtx);
+  }
+  exportCtx.restore();
+
+  const anchor = document.createElement("a");
+  anchor.href = exportCanvas.toDataURL("image/png");
+  anchor.download = "sketchpad.png";
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
 });
 
 canvas.dispatchEvent(new Event("drawing-changed"));
